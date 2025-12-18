@@ -1,3 +1,4 @@
+use clap::Parser;
 use rayon::prelude::*;
 use sha2::{Digest, Sha256};
 use std::io::Write;
@@ -5,6 +6,23 @@ use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::Arc;
 use std::thread;
 use std::time::{Duration, Instant};
+
+/// Find partial hash collisions for SHA-256
+#[derive(Parser, Debug)]
+#[command(author, version, about, long_about = None)]
+struct Args {
+    /// Number of hex digits to match
+    #[arg(short, long, default_value_t = 7)]
+    digits: u8,
+
+    /// Text template with # as placeholder for the hash
+    #[arg(
+        short,
+        long,
+        default_value = "The SHA-256 hash of this sentence begins with #."
+    )]
+    text: String,
+}
 
 macro_rules! cast {
     ($value: expr, $target_type: ty) => {
@@ -19,8 +37,8 @@ fn to_fixed_hex(n: u128, length: u8) -> String {
     format!("{n:0>width$x}", width = length as usize)
 }
 
-fn check(candidate: &str) -> bool {
-    let msg = "The SHA-256 hash of this sentence begins with ".to_owned() + candidate + ".";
+fn check(candidate: &str, template: &str) -> bool {
+    let msg = template.replace('#', candidate);
     let digest = Sha256::digest(&msg);
     let result = format!("{digest:x}");
 
@@ -35,7 +53,7 @@ fn check(candidate: &str) -> bool {
     }
 }
 
-fn solve(length: u8) {
+fn solve(length: u8, template: &str) {
     // Let length <= 32.
     let base: u128 = 16;
     let max_count: u128 = base.pow(cast!(length, u32)); // Then max_count <= 16^32 = 2^128.
@@ -83,7 +101,7 @@ fn solve(length: u8) {
         let candidate = to_fixed_hex(i, length);
 
         // Check the candidate
-        check(&candidate)
+        check(&candidate, template)
     });
 
     // Signal status thread to stop and wait for it
@@ -97,5 +115,19 @@ fn solve(length: u8) {
 }
 
 fn main() {
-    solve(7);
+    let args = Args::parse();
+
+    // Validate that template contains the placeholder
+    if !args.text.contains('#') {
+        eprintln!("Error: Template must contain '#' placeholder for the hash");
+        std::process::exit(1);
+    }
+
+    // Validate digits range
+    if args.digits == 0 || args.digits > 32 {
+        eprintln!("Error: Digits must be between 1 and 32");
+        std::process::exit(1);
+    }
+
+    solve(args.digits, &args.text);
 }
