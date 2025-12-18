@@ -9,7 +9,7 @@ fphf, short for Fixed-Point Hash Finder, is a Rust tool that finds strings that 
 
 ## What It Does
 
-fphf uses brute-force to repeatedly guess-and-check candidates until it finds a string which contains its own truncated SHA-256 hash. It can be parameterized to work with any template string and any hash prefix length. It's written in Rust and uses [rayon](https://crates.io/crates/rayon) for multithreading to maximize performance.
+fphf uses brute force to repeatedly guess-and-check candidates until it finds a string which contains its own truncated SHA-256 hash. It can be parameterized to work with any template string and any hash prefix length. It's written in Rust and uses [rayon](https://crates.io/crates/rayon) for multithreading to maximize performance.
 
 ## Why?
 
@@ -93,6 +93,8 @@ The SHA-256 hash of this sentence begins with b43c8b9.
 ### --verbose
 
 The `--verbose` flag can be used to provide detailed status information.
+
+Note that the "Remaining" field displays the time remaining until the entire hash space has been searched, not the time until a fixed point hash has been found. Put another way, the Remaining field is the *maximum* time it'll take, but it'll quite possibly take less time.
 
 ```bash
 ❯ fphf -v
