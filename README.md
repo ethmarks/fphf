@@ -154,11 +154,11 @@ No match found after searching 65536 hashes.
 
 ## Verification
 
-To verify the veracity of a fixed point hash, all you need to do is calculate the SHA-256 hash of the string and check to make sure that the first few digits match. You can do this a number of ways. 
+To verify a fixed-point hash, all you need to do is calculate the SHA-256 hash of the string and check to see if the first few digits match.
 
-The easiest method to calculate a SHA-256 hash is by using an online tool. Googling "sha256 online", I found [this webpage](https://emn178.github.io/online-tools/sha256.html). From what I can tell, it appears to be accurate.
+I recommend using my [fphv](https://github.com/ethmarks/fphv) (Fixed-Point Hash Verifier) tool for this. It's hosted at <https://fphv.vercel.app/>. Copy-paste the output from fphf into the "String" textbox, and it'll calculate the SHA-256 hash. If it's a valid fixed-point hash, it'll show a little check mark (✔) in the output box.
 
-My preferred method of calculating a SHA-256 hash is using the Linux [`sha256sum`](https://linux.die.net/man/1/sha256sum) CLI utility. If you choose this option, make *sure* that you pipe the text into `sha256sum` without adding a newline, as this will interfere with the result. `echo` *will not work*. I suggest using `printf` instead.
+You can also verify fixed-point hashes using the Linux [`sha256sum`](https://linux.die.net/man/1/sha256sum) CLI utility. If you choose this option, make *sure* that you pipe the text into `sha256sum` without adding a newline, as it will interfere with the result hash otherwise. **`echo` will not work**. I suggest using `printf` instead.
 
 ```bash
 ❯ fphf -q
