@@ -104,14 +104,12 @@ fn solve(length: u8, template: &str, verbosity: VerbosityLevel) {
     // Print initial information based on verbosity
     match verbosity {
         VerbosityLevel::Verbose => {
-            println!("Template: {}", template);
+            println!(
+                "Template: {}",
+                template.replace('#', &"#".repeat(length as usize))
+            );
             println!("Digits to match: {}", length);
             println!("Search space: {} possible combinations", max_count);
-
-            // Estimate time based on assumed hash rate (this is a rough estimate)
-            let estimated_rate = 1_000_000.0 * num_threads as f64; // Rough estimate
-            let estimated_seconds = (max_count as f64 / estimated_rate) as u64;
-            println!("Estimated time: ~{}", format_time(estimated_seconds));
             println!("Threads available: {}\n", num_threads);
         }
         VerbosityLevel::Normal => {
@@ -143,19 +141,19 @@ fn solve(length: u8, template: &str, verbosity: VerbosityLevel) {
 
                 match verbosity {
                     VerbosityLevel::Verbose => {
-                        print!(
-                            "\rElapsed: {} | Remaining: ~{} | Hashes: {}/{} ({:.4}%) | Speed: {}",
+                        println!(
+                            "Elapsed: {} | Remaining: ~{} | Hashes: {}/{} ({:.4}%) | Speed: {}",
                             format_time(elapsed as u64),
                             format_time(remaining_secs),
                             current_ops,
                             max_count,
                             progress_pct,
-                            format_hash_rate(speed)
+                            format_hash_rate(speed),
                         );
                     }
                     VerbosityLevel::Normal => {
                         print!(
-                            "\r{:.1}% complete | Speed: {} | Elapsed: {}",
+                            "\r{:.1}% searched | Speed: {} | Elapsed: {}",
                             progress_pct,
                             format_hash_rate(speed),
                             format_time(elapsed as u64)
@@ -202,7 +200,7 @@ fn solve(length: u8, template: &str, verbosity: VerbosityLevel) {
         }
         VerbosityLevel::Normal => {
             if let Some((msg, _)) = result {
-                println!("\n\nFound: {}", msg);
+                println!("\n\n{}", msg);
             } else {
                 println!("\n\nNo match found after searching {} hashes.", total_ops);
             }
