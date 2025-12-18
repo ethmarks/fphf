@@ -7,7 +7,7 @@ use std::sync::Arc;
 use std::thread;
 use std::time::{Duration, Instant};
 
-/// Find partial hash collisions for SHA-256
+/// Find fixed-point hash strings for SHA-256
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
 struct Args {
