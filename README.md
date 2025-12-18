@@ -21,7 +21,7 @@ The most practical use case I can think of for fphf is to get attention from tec
 
 fphf started as a clone of Susam Pal's [rust-sha-prefix-embed](https://github.com/susam/lab/tree/main/rust-sha-prefix-embed) tool. fphf has a much more advanced feature set, including multithreading and CLI parameters, but the concept and original source code belong to Susam.
 
-Secondly, the majority (though not entirety) of the code in this project was written using LLM agents. My role was that of an architect, reviewer, and tester, *not* that of a programmer. I attached a note in the description body of each commit that was generated primarily with an LLM.
+Secondly, the majority (though not the entirety) of the code in this project was written using LLM agents. My role was that of an architect, reviewer, and tester, *not* that of a programmer. I attached a note in the description body of each commit that was generated primarily with an LLM.
 
 ## Installation
 
