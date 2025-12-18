@@ -21,7 +21,7 @@ The most practical use case I can think of for fphf is to get attention from tec
 
 fphf started as a clone of Susam Pal's [rust-sha-prefix-embed](https://github.com/susam/lab/tree/main/rust-sha-prefix-embed) tool. fphf has a much more advanced feature set, including multithreading and CLI parameters, but the concept and original source code belong to Susam.
 
-Secondly, the majority of the code in this project was written using LLM agents. My role was that of an architect, reviewer, and tester, *not* that of a programmer. I attached a note in the description body of each commit that was generated primarily with an LLM.
+Secondly, the majority (though not entirety) of the code in this project was written using LLM agents. My role was that of an architect, reviewer, and tester, *not* that of a programmer. I attached a note in the description body of each commit that was generated primarily with an LLM.
 
 ## Installation
 
@@ -35,7 +35,7 @@ cargo build --release
 
 The binary will be available at `target/release/fphf`. The usage instructions below assume that you've moved the binary to a location on your PATH, but you could also use `./target/release/fphf` or `cargo run --release --`.
 
-## Usage
+## Basic Usage
 
 By default, fphf uses the template "The SHA-256 hash of this sentence begins with #." and searches for a hash with 7 digits.
 
@@ -47,6 +47,10 @@ Searching for 7-digit hash prefix match...
 The SHA-256 hash of this sentence begins with b43c8b9.
 ```
 
+## Options
+
+### --text
+
 The `--text` flag can be used to specify a custom template. Use an octothorpe (#) as a placeholder for the hash.
 
 ```bash
@@ -57,7 +61,11 @@ Searching for 7-digit hash prefix match...
 Hash: 0386242
 ```
 
-The `--digits` flag can be used to specify the length of the hash. WARNING: The search space grows exponentially with O(16^n) complexity for n digits. I strongly recommend sticking to 10 or fewer digits because longer hashes will take a very, very long time to compute.
+### --digits
+
+The `--digits` flag can be used to specify the length of the hash. 
+
+WARNING: The search space grows exponentially with O(16^n) complexity for n digits. I strongly recommend sticking to 10 or fewer digits because longer hashes will take a very, very long time to compute.
 
 - 4 digits: 65,536 hashes (~instant)
 - 6 digits: 16,777,216 hashes (seconds)
@@ -73,12 +81,16 @@ Searching for 5-digit hash prefix match...
 The SHA-256 hash of this sentence begins with 2f64e.
 ```
 
+### --quiet
+
 The `--quiet` flag can be used to silence all output other than the final string.
 
 ```bash
 ❯ fphf -q
 The SHA-256 hash of this sentence begins with b43c8b9.
 ```
+
+### --verbose
 
 The `--verbose` flag can be used to provide detailed status information.
 
@@ -105,6 +117,8 @@ Output string: The SHA-256 hash of this sentence begins with b43c8b9.
 Full hash: b43c8b96f151033a566e148d45c43aa84ba153ff9407397f23d5eb43112bb5e1
 ```
 
+### --help
+
 The `--help` flag can be used to view all available options.
 
 ```bash
@@ -124,7 +138,9 @@ Options:
 
 ## Search Space Exhaustion
 
-If you try to find low-length fixed-point hashes, there's a decent chance that you'll get a "No match found" error at some point. What this means is that there aren't any fixed point hashes for the specified length and template. It's not that fphf just couldn't find any, it's that they mathematically don't exist. It's like asking for a real-valued solution to `x^2+x+1=0`. Search space exhaustion is far less common on higher hash lengths, but if you insist on a low-length hash, you can tweak the template. Add or remove punctuation, rephrase a word or two, or adjust the capitalization. Because SHA-256 is so sensitive, even a tiny change will fundamentally alter the hash space, effectively giving you another shot at a low-length fixed-point hash.
+If you try to find low-length fixed-point hashes, there's a decent chance that you'll get a "No match found" error at some point. What this means is that there aren't any fixed point hashes for the specified length and template. It's not that fphf was unable to find any, it's that they mathematically don't exist. It's like asking for a real-valued solution to `x^2+x+1=0`. 
+
+Search space exhaustion is far less common on higher hash lengths, but if you insist on a low-length hash, you can tweak the template by adding or removing punctuation, rephrasing a word or two, or adjusting the capitalization. Because SHA-256 is so sensitive, even a tiny change will fundamentally alter the hash space, effectively giving you another shot at a low-length fixed-point hash.
 
 ```bash
 ❯ fphf -d 4
