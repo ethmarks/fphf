@@ -22,6 +22,21 @@ struct Args {
         default_value = "The SHA-256 hash of this sentence begins with #."
     )]
     text: String,
+
+    /// Quiet mode: only print the result string
+    #[arg(short, long)]
+    quiet: bool,
+
+    /// Verbose mode: print detailed progress information
+    #[arg(short, long)]
+    verbose: bool,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+enum VerbosityLevel {
+    Quiet,
+    Normal,
+    Verbose,
 }
 
 macro_rules! cast {
@@ -37,7 +52,7 @@ fn to_fixed_hex(n: u128, length: u8) -> String {
     format!("{n:0>width$x}", width = length as usize)
 }
 
-fn check(candidate: &str, template: &str) -> bool {
+fn check(candidate: &str, template: &str) -> Option<(String, String)> {
     let msg = template.replace('#', candidate);
     let digest = Sha256::digest(&msg);
     let result = format!("{digest:x}");
@@ -46,55 +61,120 @@ fn check(candidate: &str, template: &str) -> bool {
 
     if result.starts_with(candidate) {
         FOUND.store(true, Ordering::SeqCst);
-        println!("\n{msg}\n{result}\n");
-        true
+        Some((msg, result))
     } else {
-        false
+        None
     }
 }
 
-fn solve(length: u8, template: &str) {
+fn format_hash_rate(hashes_per_sec: f64) -> String {
+    if hashes_per_sec >= 1_000_000_000.0 {
+        format!("{:.2} GH/s", hashes_per_sec / 1_000_000_000.0)
+    } else if hashes_per_sec >= 1_000_000.0 {
+        format!("{:.2} MH/s", hashes_per_sec / 1_000_000.0)
+    } else if hashes_per_sec >= 1_000.0 {
+        format!("{:.2} kH/s", hashes_per_sec / 1_000.0)
+    } else {
+        format!("{:.2} H/s", hashes_per_sec)
+    }
+}
+
+fn format_time(seconds: u64) -> String {
+    let hours = seconds / 3600;
+    let minutes = (seconds % 3600) / 60;
+    let secs = seconds % 60;
+
+    if hours > 0 {
+        format!("{}h {}m {}s", hours, minutes, secs)
+    } else if minutes > 0 {
+        format!("{}m {}s", minutes, secs)
+    } else {
+        format!("{}s", secs)
+    }
+}
+
+fn solve(length: u8, template: &str, verbosity: VerbosityLevel) {
     // Let length <= 32.
     let base: u128 = 16;
     let max_count: u128 = base.pow(cast!(length, u32)); // Then max_count <= 16^32 = 2^128.
     let start_time: Instant = Instant::now();
     let start_time_arc = Arc::new(start_time);
+    let num_threads = rayon::current_num_threads();
 
-    println!("solving for length {length} with {max_count} arrangements");
-    println!("Threads: {} (CPU cores)", rayon::current_num_threads());
+    // Print initial information based on verbosity
+    match verbosity {
+        VerbosityLevel::Verbose => {
+            println!("Template: {}", template);
+            println!("Digits to match: {}", length);
+            println!("Search space: {} possible combinations", max_count);
+
+            // Estimate time based on assumed hash rate (this is a rough estimate)
+            let estimated_rate = 1_000_000.0 * num_threads as f64; // Rough estimate
+            let estimated_seconds = (max_count as f64 / estimated_rate) as u64;
+            println!("Estimated time: ~{}", format_time(estimated_seconds));
+            println!("Threads available: {}\n", num_threads);
+        }
+        VerbosityLevel::Normal => {
+            println!("Searching for {}-digit hash prefix match...", length);
+        }
+        VerbosityLevel::Quiet => {}
+    }
 
     // Start status updater thread
     let start_time_clone = Arc::clone(&start_time_arc);
-    let status_thread = thread::spawn(move || {
-        while !FOUND.load(Ordering::Relaxed) {
-            thread::sleep(Duration::from_secs(1));
-            let current_ops = OPS_COUNT.load(Ordering::Relaxed);
-            let elapsed = start_time_clone.elapsed().as_secs_f64();
-            let speed = if elapsed > 0.0 {
-                current_ops as f64 / elapsed
-            } else {
-                0.0
-            };
+    let status_thread = if verbosity != VerbosityLevel::Quiet {
+        Some(thread::spawn(move || {
+            while !FOUND.load(Ordering::Relaxed) {
+                thread::sleep(Duration::from_secs(1));
+                let current_ops = OPS_COUNT.load(Ordering::Relaxed);
+                let elapsed = start_time_clone.elapsed().as_secs_f64();
+                let speed = if elapsed > 0.0 {
+                    current_ops as f64 / elapsed
+                } else {
+                    0.0
+                };
 
-            let progress_pct = (current_ops as f64 / max_count as f64) * 100.0;
-            let remaining_secs = if speed > 0.0 {
-                ((max_count as f64 - current_ops as f64) / speed) as u64
-            } else {
-                0
-            };
-            print!(
-                "\r[{:.0}s of ~{}s] Hashes: {} ({:.4}%) | Speed: {:.0} H/s",
-                elapsed, remaining_secs, current_ops, progress_pct, speed
-            );
-            std::io::stdout().flush().unwrap();
-        }
-    });
+                let progress_pct = (current_ops as f64 / max_count as f64) * 100.0;
+                let remaining_secs = if speed > 0.0 {
+                    ((max_count as f64 - current_ops as f64) / speed) as u64
+                } else {
+                    0
+                };
+
+                match verbosity {
+                    VerbosityLevel::Verbose => {
+                        print!(
+                            "\rElapsed: {} | Remaining: ~{} | Hashes: {}/{} ({:.4}%) | Speed: {}",
+                            format_time(elapsed as u64),
+                            format_time(remaining_secs),
+                            current_ops,
+                            max_count,
+                            progress_pct,
+                            format_hash_rate(speed)
+                        );
+                    }
+                    VerbosityLevel::Normal => {
+                        print!(
+                            "\r{:.1}% complete | Speed: {} | Elapsed: {}",
+                            progress_pct,
+                            format_hash_rate(speed),
+                            format_time(elapsed as u64)
+                        );
+                    }
+                    VerbosityLevel::Quiet => {}
+                }
+                std::io::stdout().flush().unwrap();
+            }
+        }))
+    } else {
+        None
+    };
 
     // Use parallel iteration with early termination
-    (0..max_count).into_par_iter().find_any(|&i| {
+    let result = (0..max_count).into_par_iter().find_map_any(|i| {
         // Check the flag periodically to allow early exit
         if FOUND.load(Ordering::Relaxed) {
-            return false;
+            return None;
         }
 
         // Generate candidate (hash prefix)
@@ -106,11 +186,42 @@ fn solve(length: u8, template: &str) {
 
     // Signal status thread to stop and wait for it
     FOUND.store(true, Ordering::SeqCst);
-    let _ = status_thread.join();
+    if let Some(handle) = status_thread {
+        let _ = handle.join();
+    }
 
     let total_ops = OPS_COUNT.load(Ordering::SeqCst);
-    if u128::from(total_ops) == max_count {
-        println!("\nExhausted search space without finding a match.");
+    let elapsed = start_time.elapsed();
+
+    // Print results based on verbosity
+    match verbosity {
+        VerbosityLevel::Quiet => {
+            if let Some((msg, _)) = result {
+                println!("{}", msg);
+            }
+        }
+        VerbosityLevel::Normal => {
+            if let Some((msg, _)) = result {
+                println!("\n\nFound: {}", msg);
+            } else {
+                println!("\n\nNo match found after searching {} hashes.", total_ops);
+            }
+        }
+        VerbosityLevel::Verbose => {
+            println!("\n");
+            if let Some((msg, hash)) = result {
+                println!("=== MATCH FOUND ===");
+                println!("Total time: {}", format_time(elapsed.as_secs()));
+                println!("Total hashes searched: {}", total_ops);
+                println!("Output string: {}", msg);
+                println!("Full hash: {}", hash);
+            } else {
+                println!("=== NO MATCH FOUND ===");
+                println!("Total time: {}", format_time(elapsed.as_secs()));
+                println!("Total hashes searched: {}", total_ops);
+                println!("Exhausted search space without finding a match.");
+            }
+        }
     }
 }
 
@@ -129,5 +240,17 @@ fn main() {
         std::process::exit(1);
     }
 
-    solve(args.digits, &args.text);
+    // Determine verbosity level
+    let verbosity = if args.quiet && args.verbose {
+        eprintln!("Error: Cannot specify both --quiet and --verbose");
+        std::process::exit(1);
+    } else if args.quiet {
+        VerbosityLevel::Quiet
+    } else if args.verbose {
+        VerbosityLevel::Verbose
+    } else {
+        VerbosityLevel::Normal
+    };
+
+    solve(args.digits, &args.text, verbosity);
 }
