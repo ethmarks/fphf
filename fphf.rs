@@ -250,5 +250,18 @@ fn main() {
         VerbosityLevel::Normal
     };
 
+    // Warn about large search spaces
+    if args.digits >= 11 {
+        let base: u128 = 16;
+        let search_space = base.pow(args.digits as u32);
+        eprintln!(
+            "WARNING: Searching for {} digits requires checking up to {} combinations.",
+            args.digits, search_space
+        );
+        eprintln!("This may take an extremely long time or never complete.");
+        eprintln!("Consider using fewer digits for a practical search.");
+        eprintln!();
+    }
+
     solve(args.digits, &args.text, verbosity);
 }
