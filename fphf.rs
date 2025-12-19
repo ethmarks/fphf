@@ -3,7 +3,6 @@ use rayon::prelude::*;
 use sha2::{Digest, Sha256};
 use std::io::Write;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
-use std::sync::Arc;
 use std::thread;
 use std::time::{Duration, Instant};
 
@@ -39,32 +38,35 @@ enum VerbosityLevel {
     Verbose,
 }
 
-macro_rules! cast {
-    ($value: expr, $target_type: ty) => {
-        <$target_type>::try_from($value).unwrap()
-    };
-}
-
 static FOUND: AtomicBool = AtomicBool::new(false);
 static OPS_COUNT: AtomicU64 = AtomicU64::new(0);
 
-fn to_fixed_hex(n: u128, length: u8) -> String {
-    format!("{n:0>width$x}", width = length as usize)
+// Helper for high-speed hex writing without String allocations
+#[inline(always)]
+fn write_hex_bytes(buf: &mut [u8], mut n: u128, len: usize) {
+    const HEX_CHARS: &[u8] = b"0123456789abcdef";
+    for i in (0..len).rev() {
+        buf[i] = HEX_CHARS[(n & 0xf) as usize];
+        n >>= 4;
+    }
 }
 
-fn check(candidate: &str, template: &str) -> Option<(String, String)> {
-    let msg = template.replace('#', candidate);
-    let digest = Sha256::digest(&msg);
-    let result = format!("{digest:x}");
-
-    OPS_COUNT.fetch_add(1, Ordering::Relaxed);
-
-    if result.starts_with(candidate) {
-        FOUND.store(true, Ordering::SeqCst);
-        Some((msg, result))
-    } else {
-        None
+// Helper for high-speed byte comparison
+#[inline(always)]
+fn check_match(digest: &[u8], expected_hex_prefix: &[u8]) -> bool {
+    for (i, &expected_byte) in expected_hex_prefix.iter().enumerate() {
+        let shift = if i % 2 == 0 { 4 } else { 0 };
+        let nibble = (digest[i / 2] >> shift) & 0xf;
+        let actual_hex_char = if nibble < 10 {
+            b'0' + nibble
+        } else {
+            b'a' + (nibble - 10)
+        };
+        if actual_hex_char != expected_byte {
+            return false;
+        }
     }
+    true
 }
 
 fn format_hash_rate(hashes_per_sec: f64) -> String {
@@ -94,11 +96,17 @@ fn format_time(seconds: u64) -> String {
 }
 
 fn solve(length: u8, template: &str, verbosity: VerbosityLevel) {
-    // Let length <= 32.
-    let base: u128 = 16;
-    let max_count: u128 = base.pow(cast!(length, u32)); // Then max_count <= 16^32 = 2^128.
-    let start_time: Instant = Instant::now();
-    let start_time_arc = Arc::new(start_time);
+    let hash_placeholder_idx = template.find('#').expect("Template must contain #");
+
+    let prefix = &template[..hash_placeholder_idx];
+    let suffix = &template[hash_placeholder_idx + 1..];
+    let mut template_bytes = Vec::new();
+    template_bytes.extend_from_slice(prefix.as_bytes());
+    template_bytes.extend_from_slice(&vec![b'0'; length as usize]);
+    template_bytes.extend_from_slice(suffix.as_bytes());
+
+    let max_count: u64 = 16u64.pow(length as u32);
+    let start_time = Instant::now();
     let num_threads = rayon::current_num_threads();
 
     // Print initial information based on verbosity
@@ -119,13 +127,13 @@ fn solve(length: u8, template: &str, verbosity: VerbosityLevel) {
     }
 
     // Start status updater thread
-    let start_time_clone = Arc::clone(&start_time_arc);
     let status_thread = if verbosity != VerbosityLevel::Quiet {
+        let start_clone = start_time;
         Some(thread::spawn(move || {
             while !FOUND.load(Ordering::Relaxed) {
                 thread::sleep(Duration::from_secs(1));
                 let current_ops = OPS_COUNT.load(Ordering::Relaxed);
-                let elapsed = start_time_clone.elapsed().as_secs_f64();
+                let elapsed = start_clone.elapsed().as_secs_f64();
                 let speed = if elapsed > 0.0 {
                     current_ops as f64 / elapsed
                 } else {
@@ -161,26 +169,51 @@ fn solve(length: u8, template: &str, verbosity: VerbosityLevel) {
                     }
                     VerbosityLevel::Quiet => {}
                 }
-                std::io::stdout().flush().unwrap();
+                let _ = std::io::stdout().flush();
             }
         }))
     } else {
         None
     };
 
-    // Use parallel iteration with early termination
-    let result = (0..max_count).into_par_iter().find_map_any(|i| {
-        // Check the flag periodically to allow early exit
-        if FOUND.load(Ordering::Relaxed) {
-            return None;
-        }
+    // High-performance loop
+    let chunk_size: u64 = 2048;
+    let result = (0..(max_count / chunk_size + 1))
+        .into_par_iter()
+        .find_map_any(|chunk_idx| {
+            if FOUND.load(Ordering::Relaxed) {
+                return None;
+            }
 
-        // Generate candidate (hash prefix)
-        let candidate = to_fixed_hex(i, length);
+            let mut hasher = Sha256::new();
+            let mut local_buf = template_bytes.clone();
+            let start = chunk_idx * chunk_size;
+            let end = std::cmp::min(start + chunk_size, max_count);
 
-        // Check the candidate
-        check(&candidate, template)
-    });
+            for i in start..end {
+                write_hex_bytes(
+                    &mut local_buf[hash_placeholder_idx..hash_placeholder_idx + length as usize],
+                    i as u128,
+                    length as usize,
+                );
+
+                hasher.update(&local_buf);
+                let hash_result = hasher.finalize_reset();
+
+                if check_match(
+                    &hash_result,
+                    &local_buf[hash_placeholder_idx..hash_placeholder_idx + length as usize],
+                ) {
+                    FOUND.store(true, Ordering::SeqCst);
+                    return Some((
+                        String::from_utf8_lossy(&local_buf).into_owned(),
+                        format!("{:x}", hash_result),
+                    ));
+                }
+            }
+            OPS_COUNT.fetch_add(end - start, Ordering::Relaxed);
+            None
+        });
 
     // Signal status thread to stop and wait for it
     FOUND.store(true, Ordering::SeqCst);

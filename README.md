@@ -1,10 +1,10 @@
 # fphf
 
-fphf, short for Fixed-Point Hash Finder, is a Rust tool that finds strings that contain part of their own SHA-256 hash. For example, the hash for this paragraph begins with 58c3b2a1.
+fphf (Fixed-Point Hash Finder) is a Rust tool that finds strings that contain part of their own SHA-256 hash. For example, the hash for this paragraph begins with 80699e1.
 
 ```bash
-❯ printf "fphf, short for Fixed-Point Hash Finder, is a Rust tool that finds strings that contain part of their own SHA-256 hash. For example, the hash for this paragraph begins with 58c3b2a1." | sha256sum
-58c3b2a137bdceaf5a5e0fad6aa2270174e357ba9d2276df928a0d3111b0669c  -
+❯ printf 'fphf (Fixed-Point Hash Finder) is a Rust tool that finds strings that contain part of their own SHA-256 hash. For example, the hash for this paragraph begins with 80699e1.' | sha256sum
+80699e11b9c39c251f05efb875a8c7d0ad25beb87860fa52751c057370353969  -
 ```
 
 ## What It Does
@@ -25,15 +25,13 @@ Secondly, the majority (though not the entirety) of the code in this project was
 
 ## Installation
 
-Make sure you have [Rust installed](https://rust-lang.org/tools/install/), clone the repo, and build it:
+Make sure you have [Rust installed](https://rust-lang.org/tools/install/), clone the repo, and install it with Cargo.
 
 ```bash
 git clone https://github.com/ethmarks/fphf.git
 cd fphf
-cargo build --release
+cargo install --path .
 ```
-
-The binary will be available at `target/release/fphf`. The usage instructions below assume that you've moved the binary to a location on your PATH, but you could also use `./target/release/fphf` or `cargo run --release --`.
 
 ## Basic Usage
 
@@ -42,7 +40,7 @@ By default, fphf uses the template "The SHA-256 hash of this sentence begins wit
 ```bash
 ❯ fphf
 Searching for 7-digit hash prefix match...
-50.1% searched | Speed: 19.19 MH/s | Elapsed: 7s
+58.0% searched | Speed: 155.56 MH/s | Elapsed: 1s
 
 The SHA-256 hash of this sentence begins with b43c8b9.
 ```
@@ -54,11 +52,11 @@ The SHA-256 hash of this sentence begins with b43c8b9.
 The `--text` flag can be used to specify a custom template. Use an octothorpe (#) as a placeholder for the hash.
 
 ```bash
-❯ fphf -t 'Hash: #'
+❯ fphf -t 'hello, dear reader! #'
 Searching for 7-digit hash prefix match...
-23.5% searched | Speed: 20.99 MH/s | Elapsed: 3s
+76.1% searched | Speed: 102.14 MH/s | Elapsed: 2s
 
-Hash: 0386242
+hello, dear reader! fb32a98
 ```
 
 ### --digits
@@ -74,11 +72,11 @@ WARNING: The search space grows exponentially with O(16^n) complexity for n digi
 - 30 digits: 1,329,227,995,784,915,872,903,807,060,280,344,576 hashes (effectively uncomputable)
 
 ```bash
-❯ fphf -d 5
-Searching for 5-digit hash prefix match...
-47.3% searched | Speed: 495.29 kH/s | Elapsed: 1s
+❯ fphf -d 8
+Searching for 8-digit hash prefix match...
+79.6% searched | Speed: 170.97 MH/s | Elapsed: 20s
 
-The SHA-256 hash of this sentence begins with 2f64e.
+The SHA-256 hash of this sentence begins with 634f0510.
 ```
 
 ### --quiet
@@ -103,18 +101,13 @@ Digits to match: 7
 Search space: 268435456 possible combinations
 Threads available: 12
 
-Elapsed: 1s | Remaining: ~10s | Hashes: 22701125/268435456 (8.4568%) | Speed: 22.66 MH/s
-Elapsed: 2s | Remaining: ~9s | Hashes: 45375593/268435456 (16.9037%) | Speed: 22.67 MH/s
-Elapsed: 3s | Remaining: ~8s | Hashes: 68044707/268435456 (25.3486%) | Speed: 22.67 MH/s
-Elapsed: 4s | Remaining: ~7s | Hashes: 90510051/268435456 (33.7176%) | Speed: 22.62 MH/s
-Elapsed: 5s | Remaining: ~7s | Hashes: 107706640/268435456 (40.1239%) | Speed: 21.53 MH/s
-Elapsed: 6s | Remaining: ~6s | Hashes: 125779193/268435456 (46.8564%) | Speed: 20.94 MH/s
-Elapsed: 7s | Remaining: ~6s | Hashes: 144521962/268435456 (53.8386%) | Speed: 20.62 MH/s
+Elapsed: 1s | Remaining: ~0s | Hashes: 181817344/268435456 (67.7322%) | Speed: 181.69 MH/s
+Elapsed: 2s | Remaining: ~0s | Hashes: 209453056/268435456 (78.0273%) | Speed: 104.69 MH/s
 
 
 === MATCH FOUND ===
-Total time: 7s
-Total hashes searched: 144521962
+Total time: 2s
+Total hashes searched: 209453056
 Output string: The SHA-256 hash of this sentence begins with b43c8b9.
 Full hash: b43c8b96f151033a566e148d45c43aa84ba153ff9407397f23d5eb43112bb5e1
 ```
@@ -140,16 +133,24 @@ Options:
 
 ## Search Space Exhaustion
 
-If you try to find low-length fixed-point hashes, there's a decent chance that you'll get a "No match found" error at some point. What this means is that there aren't any fixed point hashes for the specified length and template. It's not that fphf was unable to find any, it's that they mathematically don't exist. It's like asking for a real-valued solution to `x^2+x+1=0`. 
-
-Search space exhaustion is far less common on higher hash lengths, but if you insist on a low-length hash, you can tweak the template by adding or removing punctuation, rephrasing a word or two, or adjusting the capitalization. Because SHA-256 is so sensitive, even a tiny change will fundamentally alter the hash space, effectively giving you another shot at a low-length fixed-point hash.
+There's a decent chance that you'll get a "No match found" error from fphf at some point. What this means is that there aren't any fixed point hashes for the specified length and template. It's not that fphf was just unable to find any, it's that they mathematically don't exist. It's like asking for a real-valued solution to `x^2+x+1=0`. 
 
 ```bash
-❯ fphf -d 4
-Searching for 4-digit hash prefix match...
-100.0% searched | Speed: 65.45 kH/s | Elapsed: 1s
+❯ fphf -t 'i want this particular template #' -d 5
+Searching for 5-digit hash prefix match...
+100.0% searched | Speed: 1.05 MH/s | Elapsed: 1s
 
-No match found after searching 65536 hashes.
+No match found after searching 1048576 hashes.
+```
+
+You can overcome this by changing the desired hash length or by tweaking the template (adding or removing punctuation, rephrasing a word or two, adjusting capitalization, etc). Because SHA-256 is so sensitive, even a tiny change will fundamentally alter the hash space, effectively giving you another shot at a low-length fixed-point hash.
+
+```bash
+❯ fphf -t 'I want this particular template #' -d 5
+Searching for 5-digit hash prefix match...
+2.5% searched | Speed: 26.60 kH/s | Elapsed: 1s
+
+I want this particular template 1cba2
 ```
 
 ## Verification
