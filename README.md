@@ -25,15 +25,13 @@ Secondly, the majority (though not the entirety) of the code in this project was
 
 ## Installation
 
-Make sure you have [Rust installed](https://rust-lang.org/tools/install/), clone the repo, and build it:
+Make sure you have [Rust installed](https://rust-lang.org/tools/install/), clone the repo, and install it with Cargo.
 
 ```bash
 git clone https://github.com/ethmarks/fphf.git
 cd fphf
-cargo build --release
+cargo install --path .
 ```
-
-The binary will be available at `target/release/fphf`. The usage instructions below assume that you've moved the binary to a location on your PATH, but you could also use `./target/release/fphf` or `cargo run --release --`.
 
 ## Basic Usage
 
