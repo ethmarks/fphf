@@ -17,12 +17,6 @@ Fixed point hashes are similar in usefulness to bare-handed apple splitting. It'
 
 The most practical use case I can think of for fphf is to get attention from tech people. The [first time I saw a fixed-point hash](https://mastodon.social/@susam/113465877615338066), I was completely blown away. If you want to include a fixed point hash in your bio, I can confidently say that at least some people will find it really cool.
 
-## A note on authorship
-
-fphf started as a clone of Susam Pal's [rust-sha-prefix-embed](https://github.com/susam/lab/tree/main/rust-sha-prefix-embed) tool. fphf has a much more advanced feature set, including multithreading and CLI parameters, but the concept and original source code belong to Susam.
-
-Secondly, the majority (though not the entirety) of the code in this project was written using LLM agents. My role was that of an architect, reviewer, and tester, *not* that of a programmer. I attached a note in the description body of each commit that was generated primarily with an LLM.
-
 ## Installation
 
 Make sure you have [Rust installed](https://rust-lang.org/tools/install/), clone the repo, and install it with Cargo.
@@ -168,6 +162,12 @@ The SHA-256 hash of this sentence begins with b43c8b9.
 ❯ printf 'The SHA-256 hash of this sentence begins with b43c8b9.' | sha256sum
 b43c8b96f151033a566e148d45c43aa84ba153ff9407397f23d5eb43112bb5e1  -
 ```
+
+## A note on authorship
+
+fphf started as a clone of Susam Pal's [rust-sha-prefix-embed](https://github.com/susam/lab/tree/main/rust-sha-prefix-embed) tool. fphf has a much more advanced feature set, including multithreading and CLI parameters, but the concept and original source code belong to Susam.
+
+Secondly, the majority (though not the entirety) of the code in this project was written using LLM agents. My role was that of an architect, reviewer, and tester, *not* that of a programmer. I attached a note in the description body of each commit that was generated primarily with an LLM.
 
 ## License
 
