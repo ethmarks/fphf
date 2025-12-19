@@ -13,7 +13,7 @@ fphf uses brute force to repeatedly guess-and-check candidates until it finds a 
 
 ## Why?
 
-Fixed point hashes are similar in usefulness to bare-handed apple splitting. Seeing someone casually rip an apple in half seems like a superhuman feat of strength unless you know the technique. It's a fun but gimmicky party trick. Likewise, seeing something that required brute-forcing a SHA-256 hash seems like a staggering feat of computation unless you realize that the search space is actually only a few billion combinations.
+Fixed point hashes are similar in usefulness to bare-handed apple splitting. It's a fun but gimmicky party trick. Seeing someone casually rip an apple in half seems like a superhuman feat of strength unless you know the technique. Likewise, seeing something that required brute-forcing a SHA-256 hash seems like a staggering feat of computation unless you realize that the search space is actually only a few billion combinations.
 
 The most practical use case I can think of for fphf is to get attention from tech people. The [first time I saw a fixed-point hash](https://mastodon.social/@susam/113465877615338066), I was completely blown away. If you want to include a fixed point hash in your bio, I can confidently say that at least some people will find it really cool.
 
